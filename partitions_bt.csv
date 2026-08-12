@@ -1,0 +1,9 @@
+# Custom 4MB layout for the Bluetooth build. Drops the second OTA app slot (we
+# flash over USB anyway) to free room for the ~0.8MB Bluetooth Classic stack.
+#   factory app : 2.0 MB  (firmware + BT stack; default is only 1.25MB)
+#   spiffs      : 1.875MB (LittleFS sound files; more than the default 1.44MB)
+# Name,     Type, SubType,  Offset,    Size
+nvs,        data, nvs,      0x9000,    0x5000
+factory,    app,  factory,  0x10000,   0x200000
+spiffs,     data, spiffs,   0x210000,  0x1E0000
+coredump,   data, coredump, 0x3F0000,  0x10000
