@@ -1,4 +1,4 @@
-# The World's Worst Alarm Clock
+# The World's Worst Alarm Clock Ever
 
 An ESP32 alarm clock that keeps perfect time, pulls the weather, works as a Bluetooth speaker, and most importantly, it is very unpredictable.
 
@@ -60,13 +60,13 @@ Trolls don't touch the clock state directly. They write to a set of hooks — fa
 
 Animation is stateless. Every draw call works out where it is in the sequence as a fraction from 0 to 1 and renders from that alone — nothing increments a frame counter. That means frame rate doesn't matter, there's no state to clean up, and frame 900 renders correctly without stepping through the 899 before it.
 
-Audio took longer to get right than anything else. It plays WAV and MP3 from LittleFS through a ring-buffered queue, with per-clip gain overrides and a decoder picked by file extension, so the MP3 decoder only costs heap when it's actually needed. Two bugs ate most of the debugging time: the library's stop() clears the DMA buffer at end-of-file, which was cutting roughly the last 170ms off every clip, and queuing the next clip immediately ran into that same tail while it was still draining. Fixed it with a persistent I2S subclass that keeps the peripheral installed and can hold onto the buffer, plus a short drain window between clips — a silent tail added in code instead of re-editing every audio file.
-
 Bluetooth and the sound engine fight over the same I2S peripheral, since only one driver can hold it at a time. Switching to speaker mode tears down the sound engine's driver and hands the pins to the A2DP sink; switching back reinstalls it, and an alarm that fires mid-Bluetooth-playback does that handoff live. Getting the Bluetooth stack to fit at all meant giving up the second OTA slot for a custom partition table.
 
 It's a clock, so it has to behave like one even when things go wrong. It comes up on the RTC's last known time if there's no network at boot. Buttons are interrupt-driven with debounce handled in the ISR itself. State transitions are owned by a single file instead of being triggered piecemeal from whatever module wants one. If nobody touches it for a few days, it dims the display and suspends every troll until someone interacts with it again.
 
 Every tunable value — pins, timeouts, night-mode hours, sound files and volumes, per-troll trigger odds, fish swim speed, blink frequency — lives in one config file, so behavior can be adjusted without touching the logic anywhere else.
+
+Designing and printing the case was one of the most time consuming parts of the whole project. The measurements are extremely precise and it took multiple renditions to perfectly narrow down the design. The STL file is shown below.
 
 Stack: C++ on ESP32 / Arduino via PlatformIO · U8g2 · ESP8266Audio · ESP32-A2DP · ArduinoJson · LittleFS · NVS · open-meteo
 
@@ -77,7 +77,12 @@ Stack: C++ on ESP32 / Arduino via PlatformIO · U8g2 · ESP8266Audio · ESP32-A2
 ESP32, SSD1309 128×64 SPI OLED, DS3231 RTC, rotary encoder, three buttons, and a MAX98357A I2S amplifier driving a small speaker.
 
 - **Parts list:** _(link coming)_
-- **Printable enclosure (STL):** _(link coming)_
+- **Printable enclosure (STL):**
+[![Enclosure preview](https://cdn.thingiverse.com/assets/.../preview.jpg)](https://www.thingiverse.com/thing:7395218)
+
+Alternate download:
+[Download the case STL](docs/WorstAlarmClockEver.stl)
+
 
 ![Wiring](docs/wiring.jpg)
 
