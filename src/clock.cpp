@@ -2,8 +2,19 @@
 #include "troll_events.h"   // drawTrollOverlay -- background trolls paint over the clock
 
 bool showDate = true;
-bool showTemp = true;
 bool showAMPM = true;
+int  tempMode = TEMP_HIGH;
+
+bool tempShown() { return tempMode != TEMP_OFF; }
+
+// Short label for the Display menu row.
+const char* tempModeLabel() {
+    switch (tempMode) {
+        case TEMP_OFF:     return "Off";
+        case TEMP_CURRENT: return "Curr";
+        default:           return "High";
+    }
+}
 
 static int  lastDrawnHour   = -1;
 static int  lastDrawnMinute = -1;
@@ -75,10 +86,11 @@ void clearAlarmInvert() {
 //  THE FOUR ELEMENTS
 // ============================================================================
 
-// Weather, bottom right. Shows the current temperature paired with today's high
-// until the evening, then tomorrow's -- by then today's high is history.
+// Weather, bottom right. In TEMP_CURRENT it is just the current reading; in
+// TEMP_HIGH it is the current reading paired with the day's high, switching to
+// tomorrow's high in the evening once today's is history.
 void displayWeather() {
-    if (!showTemp) return;
+    if (!tempShown()) return;
     if (isNightMode()) return;   // night mode shows the time and nothing else
 
     int ox   = clockElemOffX[CE_TEMP];
@@ -91,7 +103,11 @@ void displayWeather() {
     // glyph and the right-edge alignment uses on-screen width, not byte count.
     char temp[16];
     if (clockFakeTemp) {
+        // A troll owns the reading: shown alone whatever the mode, so the
+        // nonsense number reads as one absurd temperature and not a forecast.
         sprintf(temp, "%.0f°F", clockFakeTempNow);
+    } else if (tempMode == TEMP_CURRENT) {
+        sprintf(temp, "%.0f°F", currentTemp);
     } else {
         float high = (getCurrentTime().hour() <= WEATHER_TOMORROW_AFTER_HOUR)
                    ? todayHighTemp : tomorrowHighTemp;
@@ -496,7 +512,12 @@ void loadDisplayPreferences() {
     prefs.begin("display", true);
     twelveHourFormat = prefs.getBool("12hr", true);
     showDate         = prefs.getBool("date", true);
-    showTemp         = prefs.getBool("temp", true);
+    // "tempmode" replaced the older on/off "temp" bool. If only the old key is
+    // present, carry the setting over so an existing clock keeps its choice.
+    if (prefs.isKey("tempmode"))   tempMode = prefs.getInt("tempmode", TEMP_HIGH);
+    else if (prefs.isKey("temp"))  tempMode = prefs.getBool("temp", true) ? TEMP_HIGH : TEMP_OFF;
+    else                           tempMode = TEMP_HIGH;
+    if (tempMode < 0 || tempMode >= TEMP_MODE_COUNT) tempMode = TEMP_HIGH;
     showAMPM         = prefs.getBool("ampm", true);
     autoNightMode    = prefs.getBool("autonight", true);
     int saved        = prefs.getInt("bright", brightnessLevel);
@@ -509,7 +530,7 @@ void saveDisplayPreferences() {
     prefs.begin("display", false);
     prefs.putBool("12hr", twelveHourFormat);
     prefs.putBool("date", showDate);
-    prefs.putBool("temp", showTemp);
+    prefs.putInt("tempmode", tempMode);
     prefs.putBool("ampm", showAMPM);
     prefs.putBool("autonight", autoNightMode);
     // Never persist night mode: it is a time of day, not a preference. Saving

@@ -1621,8 +1621,8 @@ static void endLoseDate()  { showDate = false; saveDisplayPreferences(); }
 static bool canLoseDate()  { return showDate && !isNightMode(); }
 
 static void drawLoseTemp() { slideElementAway(CE_TEMP, 60, 0); }    // exits right
-static void endLoseTemp()  { showTemp = false; saveDisplayPreferences(); }
-static bool canLoseTemp()  { return showTemp && !isNightMode(); }
+static void endLoseTemp()  { tempMode = TEMP_OFF; saveDisplayPreferences(); }
+static bool canLoseTemp()  { return tempShown() && !isNightMode(); }
 
 static void drawLoseAlarm() { slideElementAway(CE_ALARM, 0, 18); }  // exits downward
 

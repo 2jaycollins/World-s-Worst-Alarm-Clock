@@ -1,5 +1,5 @@
 #include "clock_logic.h"
-#include "clock.h"     // showTemp / night mode / u8g2 for the offline splash
+#include "clock.h"     // tempMode / night mode / u8g2 for the offline splash
 #include "encoder.h"   // the startup WiFi picker reads the encoder directly
 
 RTC_DS3231 rtc;
@@ -62,7 +62,7 @@ void setupClock() {
 
         // Hide the weather, since we have none. Only set in memory, so a later
         // successful boot restores the user's real preference.
-        showTemp = false;
+        tempMode = TEMP_OFF;
         DEBUG_PRINTLN("No WiFi at boot -- offline clock on last known RTC time");
     }
 

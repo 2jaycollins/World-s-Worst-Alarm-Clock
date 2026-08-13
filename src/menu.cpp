@@ -231,7 +231,7 @@ static const char* displayLabel(int i) {
                 else               snprintf(row, sizeof(row), "Bright: %d/4", brightnessLevel + 1);
                 break;
         case 2: snprintf(row, sizeof(row), "Date:   %s", showDate ? "On" : "Off"); break;
-        case 3: snprintf(row, sizeof(row), "Temp:   %s", showTemp ? "On" : "Off"); break;
+        case 3: snprintf(row, sizeof(row), "Temp:   %s", tempModeLabel()); break;
         case 4: snprintf(row, sizeof(row), "AM/PM:  %s", showAMPM ? "On" : "Off"); break;
         default: snprintf(row, sizeof(row), "Night:  %s", autoNightMode ? "Auto" : "Off"); break;
     }
@@ -412,7 +412,7 @@ void handleMenuClick() {
                 case 0: twelveHourFormat = !twelveHourFormat; break;
                 case 1: cycleBrightness();                    break;   // saves itself
                 case 2: showDate = !showDate;                 break;
-                case 3: showTemp = !showTemp;                 break;
+                case 3: tempMode = (tempMode + 1) % TEMP_MODE_COUNT; break;
                 case 4: showAMPM = !showAMPM;                 break;
                 case 5: setAutoNightMode(!autoNightMode);     break;
             }

@@ -53,8 +53,24 @@ int clockBandTopFor(int textH);
 //  included -- it is always shown when there is an alarm to show.
 // ============================================================================
 extern bool showDate;
-extern bool showTemp;
 extern bool showAMPM;
+
+// The temperature readout has three settings rather than a simple on/off:
+//   TEMP_OFF      nothing at all
+//   TEMP_CURRENT  just the current reading, e.g. "72°F"
+//   TEMP_HIGH     the current reading paired with the day's high, "72|85°F"
+// TEMP_HIGH switches to TOMORROW's high in the evening, once today's is
+// history -- see WEATHER_TOMORROW_AFTER_HOUR in values.h.
+enum TempMode {
+    TEMP_OFF = 0,
+    TEMP_CURRENT,
+    TEMP_HIGH,
+    TEMP_MODE_COUNT   // must stay last
+};
+
+extern int  tempMode;
+bool        tempShown();      // is the readout displayed at all?
+const char* tempModeLabel();  // short text for the menu row
 
 void loadDisplayPreferences();
 void saveDisplayPreferences();
