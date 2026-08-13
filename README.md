@@ -2,7 +2,7 @@
 
 An ESP32 alarm clock that keeps perfect time, pulls the weather, works as a Bluetooth speaker, and most importantly, it is very unpredictable.
 
-It is a genuinely good alarm clock. It syncs from NTP, it has a battery-backed RTC so a power cut doesn't touch it, it dims itself at night, it plays whatever sound you want. It also has forty different ways of ruining your morning, and you get to choose which ones are armed.
+It is a genuinely good alarm clock. It syncs from NTP, it has a battery-backed RTC so a power cut doesn't touch it, it dims itself at night, and also has forty different ways of ruining your morning.
 
 ![The clock on a bedside table](docs/hero.jpg)
 
@@ -12,9 +12,7 @@ It is a genuinely good alarm clock. It syncs from NTP, it has a battery-backed R
 
 ## Why
 
-I wanted an alarm clock I couldn't get complacent about. The problem with a normal alarm is that you learn it — exactly how long the snooze is, exactly what the beep sounds like, exactly how many times you can hit it. So this one doesn't let you. The snooze might be three minutes or it might be twenty, and you don't find out until a slot machine tells you. The alarm might go off nine minutes early. Some mornings the clock is just quietly wrong, by a few minutes, all day.
-
-Every one of those behaviours is individually switchable from a hidden menu, so it runs as a completely normal clock until you start turning the knives on one at a time.
+My roommate needed a new alarm clock, so I took it upon myself to make his life as slightly inconvenient as I could. The problem with a normal alarm is that it works exactly how it is supposed to. Where is the fun in that? This alarm clock is packed with a variety of "features" that do anything from canceling your alarm for no reason to whispering at you in your sleep. 
 
 ---
 
@@ -34,7 +32,7 @@ Every one of those behaviours is individually switchable from a hidden menu, so 
 
 ## The trolls
 
-Forty of them, all off by default, all individually switchable, sorted by how much damage they're allowed to do.
+Forty randomly-triggered events that range from quick visual gags to multi-hour long interruptions.
 
 ![A troll in action](docs/troll-demo.gif)
 
@@ -50,29 +48,27 @@ Forty of them, all off by default, all individually switchable, sorted by how mu
 
 **Fundamentals** aren't events at all, they're permanent changes in behaviour. The snooze wheel replaces your snooze length with a slot machine. Snooze games make you win a minigame to earn one — lose, and the alarm switches off entirely and has to be re-armed by hand. Alarm drift moves the alarm up to ten minutes either way, re-rolled every time you arm it so the offset can't be learned.
 
-There's a safety switch, on by default, that guarantees no troll can suppress or steal the alarm. That's the difference between something you can sleep next to and a science experiment.
+There's a safety switch, accessible by a secret code, that allows the customization of the events and what they are capable of. That's the difference between something you can sleep next to and a science experiment.
 
 ---
 
 ## Engineering notes
 
-The interesting problem here isn't any individual gag — it's getting forty of them to coexist without the codebase becoming a pile of special cases.
+Forty gags share one codebase without turning into forty special cases, mostly because trolls are treated as data rather than code. Each one is a row in a table — kind, duration, whether it draws over the clock, function pointers for its lifecycle hooks. Adding a new troll means an enum entry, a table row, and a draw function; the menu entry, saved on/off state, random scheduling, and input handling come for free. A static_assert catches it if the enum and table ever drift out of sync.
 
-**Trolls are data, not code.** Each one is a row in a single table: kind, duration, whether it draws over the clock, and function pointers for its lifecycle hooks. Adding one is an enum entry, a table row and a draw function — the menu entry, saved on/off state, random scheduling and input handling all follow automatically. A `static_assert` fails the build if the enum and the table ever drift apart.
+Trolls don't touch the clock state directly. They write to a set of hooks — fake times, per-element pixel offsets, layout flags — that get reset centrally whenever an event ends. That's what stops a cancelled or interrupted troll from leaving the clock in a broken state.
 
-**Trolls never touch the clock directly.** They write to a set of hooks — fake times, per-element pixel offsets, layout flags — and every hook is reset centrally when an event ends, so a troll can't permanently break the clock even if it's cancelled mid-animation.
+Animation is stateless. Every draw call works out where it is in the sequence as a fraction from 0 to 1 and renders from that alone — nothing increments a frame counter. That means frame rate doesn't matter, there's no state to clean up, and frame 900 renders correctly without stepping through the 899 before it.
 
-**Animation is a pure function of time.** Nothing counts frames. Every draw asks "how far along am I, 0 to 1?" and derives the whole picture from that, so there's no state to reset, it's correct at any frame rate, and frame 900 can be reasoned about without simulating the 899 before it.
+Audio took longer to get right than anything else. It plays WAV and MP3 from LittleFS through a ring-buffered queue, with per-clip gain overrides and a decoder picked by file extension, so the MP3 decoder only costs heap when it's actually needed. Two bugs ate most of the debugging time: the library's stop() clears the DMA buffer at end-of-file, which was cutting roughly the last 170ms off every clip, and queuing the next clip immediately ran into that same tail while it was still draining. Fixed it with a persistent I2S subclass that keeps the peripheral installed and can hold onto the buffer, plus a short drain window between clips — a silent tail added in code instead of re-editing every audio file.
 
-**The audio engine took the most debugging.** It plays WAV and MP3 off LittleFS with a ring-buffered play queue, per-clip gain overrides, and a decoder chosen by file extension so the MP3 decoder's heap cost is only paid when a clip needs it. Two bugs were worth the trouble: the library's `stop()` wipes the DMA buffer at end-of-file, cutting the last ~170ms off every clip, and starting the next queued clip immediately then collides with that same draining tail. The fix was a persistent I2S subclass that keeps the peripheral installed and can preserve the buffer, plus a short drain window between clips — effectively appending a silent tail in code instead of editing every audio file.
+Bluetooth and the sound engine fight over the same I2S peripheral, since only one driver can hold it at a time. Switching to speaker mode tears down the sound engine's driver and hands the pins to the A2DP sink; switching back reinstalls it, and an alarm that fires mid-Bluetooth-playback does that handoff live. Getting the Bluetooth stack to fit at all meant giving up the second OTA slot for a custom partition table.
 
-**Bluetooth and the sound engine share one I2S peripheral,** and only one driver can own it. Entering speaker mode tears down the sound engine's driver and hands the pins to the A2DP sink; leaving reinstalls it, and an alarm mid-playback performs that handoff on the fly. Fitting the Bluetooth stack also meant a custom partition table trading the second OTA slot for application space.
+It's a clock, so it has to behave like one even when things go wrong. It comes up on the RTC's last known time if there's no network at boot. Buttons are interrupt-driven with debounce handled in the ISR itself. State transitions are owned by a single file instead of being triggered piecemeal from whatever module wants one. If nobody touches it for a few days, it dims the display and suspends every troll until someone interacts with it again.
 
-**Robustness, because it's a clock.** It boots offline on the RTC's last known time if no network is reachable. Buttons are interrupt-driven with debounce in the ISR. Every state transition is owned by one file rather than scattered across the modules that request them. An idle mode notices nobody has touched it in days, dims down and suspends every troll until someone comes back.
+Every tunable value — pins, timeouts, night-mode hours, sound files and volumes, per-troll trigger odds, fish swim speed, blink frequency — lives in one config file, so behavior can be adjusted without touching the logic anywhere else.
 
-**One file holds every tunable value** — pins, timeouts, night-mode hours, sound files and volumes, the odds each troll fires at, and per-troll dials for how fast the fish swim or how often the eye blinks. Behaviour can be retuned without reading any logic.
-
-**Stack:** C++ on ESP32 / Arduino via PlatformIO · U8g2 · ESP8266Audio · ESP32-A2DP · ArduinoJson · LittleFS · NVS · open-meteo
+Stack: C++ on ESP32 / Arduino via PlatformIO · U8g2 · ESP8266Audio · ESP32-A2DP · ArduinoJson · LittleFS · NVS · open-meteo
 
 ---
 
