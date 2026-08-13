@@ -26,7 +26,7 @@ My roommate needed a new alarm clock, so I took it upon myself to make his life 
 
 **Bluetooth speaker** — The clock is an A2DP sink. Track title and artist scroll along the bottom and freeze when you pause; the three front buttons become transport controls and the knob is volume. An alarm going off will drop the Bluetooth link, take the audio hardware back, and ring.
 
-![Bluetooth mode](docs/bluetooth.jpg)
+![Bluetooth mode](docs/bluetooth.gif)
 
 ---
 
@@ -76,12 +76,19 @@ Stack: C++ on ESP32 / Arduino via PlatformIO · U8g2 · ESP8266Audio · ESP32-A2
 
 ESP32, SSD1309 128×64 SPI OLED, DS3231 RTC, rotary encoder, three buttons, and a MAX98357A I2S amplifier driving a small speaker.
 
-- **Parts list:** _(link coming)_
-- **Printable enclosure (STL):**
-[![Enclosure preview](https://cdn.thingiverse.com/assets/.../preview.jpg)](https://www.thingiverse.com/thing:7395218)
+## Parts list
+- [ESP32 dev board](https://www.amazon.com/ESP-WROOM-32-Development-Dual-Mode-Microcontroller-Integrated/dp/B0BK13HWBJ?crid=BL2BS80EYGM7&dib=eyJ2IjoiMSJ9.mYrviO_4Gnr39KcbK8VjFAi-1GUcFsmeBokAXGn0k0Dk2YvQ-payRvU0_jddVJtn3o42sVWTIRKopTGt08j-5MaQkEx9UFx7hs2UqvqxcJvGvUsA34bJjbc-fVyyeIaK3d-UitD-700XW_3NH1Mfsdeii5Joy_vmQqu7BimeQ5z6zLYIxhZ1yXgWDSaNIf9T0JDUM7itV0Q8g_YqQv0SiV4BzgZGlYDyYb2X_dUEDBg.aSdi4Sbn0OubSRkG_Zvv1XDPCcFbNZUG9AZI_xPLnHc&dib_tag=se&keywords=ESP32%2BWROOM%2B32%2Bmelife&qid=1778305449&sprefix=esp32%2Bwroom%2B32%2Bmelif%2Caps%2C311&sr=8-6&th=1)
+- [SSD1309 2.42" OLED (SPI version)](https://www.aliexpress.us/item/2255799816264653.html?spm=a2g0o.order_list.order_list_main.10.3dcd1802b7C0o8&gatewayAdapt=glo2usa)
+- [KY-040 rotary encoder](https://www.aliexpress.us/item/3256807353813379.html?spm=a2g0o.order_list.order_list_main.15.3dcd1802b7C0o8&gatewayAdapt=glo2usa&_randl_shipto=US)
+- [8Ω speaker](https://www.aliexpress.us/item/3256807619443281.html?spm=a2g0o.productlist.main.3.1b405975ZzXg5d&algo_pvid=5acbd5a5-8fb6-43b6-a3f9-a8abcb8a8837&algo_exp_id=5acbd5a5-8fb6-43b6-a3f9-a8abcb8a8837-2&pdp_ext_f=%7B%22order%22%3A%222407%22%2C%22eval%22%3A%221%22%2C%22orig_sl_item_id%22%3A%221005007805758033%22%2C%22orig_item_id%22%3A%221005006344913948%22%2C%22fromPage%22%3A%22search%22%7D&pdp_npi=6%40dis%21USD%215.13%210.99%21%21%2134.46%216.67%21%4021032c8d17865856176421300e0cf4%2112000042262327050%21sea%21US%212688206086%21X%211%210%21n_tag%3A-29919%3Bd%3Acc9dd226%3Bm03_new_user%3A-29895%3BpisId%3A5000000214298657&curPageLogUid=YCjim9C9pwCF&utparam-url=scene%3Asearch%7Cquery_from%3A%7Cx_object_id%3A1005007805758033%7C_p_origin_prod%3A1005006344913948)
+- [DS3231 RTC module](https://www.aliexpress.com/store/1102860088?spm=a2g0o.order_list.order_list_main.27.3dcd1802b7C0o8)
+- [MAX 98357 amplifier](https://www.amazon.com/dp/B0DPJRLMDJ?ref=ppx_yo2ov_dt_b_fed_asin_title)
+- [Buttons](https://www.amazon.com/20pcs-Momentary-Tactile-Button-Switch/dp/B008DGA9UY?dib=eyJ2IjoiMSJ9.swj8hMR-DzLd3viAnhKk-iLZqAFIq1X_j61PHujkNcV8BBvYxoIHh7Gbz_hOxlMkDzS0p5VUAKUA-vZ49HhCpyjpbUONDjQZTRXIggy0SOFJFqWgcu2Ktd5rNToGrMSoYEfQnMGHS-f3hNMqWfN3lOMD3ZuzMz5xPaJ9ErSxg0d6xGNy1S8AIhagiw3UR4eLSERgrMBHy0fKgMbF7br46peLps43bUfjueGkYiHN7tg.Vn7eBTjpdz-CCw3heCwbEqKy38GOFEqBfDTcdV3j9bw&dib_tag=se&keywords=12mm+tactile+push+button+momentary+switch%22&qid=1778309688&sr=8-3)
+## Printable enclosure (STL)
+[![Preview on thingiverse](https://cdn.thingiverse.com/assets/.../preview.jpg)](https://www.thingiverse.com/thing:7395218)
 
-Alternate download:
-[Download the case STL](docs/WorstAlarmClockEver.stl)
+-Alternate download:
+[STL file](docs/WorstAlarmClockEver.stl)
 
 
 ![Wiring](docs/wiring.jpg)
