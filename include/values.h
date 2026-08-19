@@ -113,6 +113,13 @@ static constexpr unsigned long WEATHER_RETRY_DELAY     = 1500;    // pause betwe
 static constexpr int           WEATHER_HTTP_TIMEOUT    = 20000;   // per-request timeout
 static constexpr int           WEATHER_FAIL_THRESHOLD  = 3;       // failed refreshes before the stale "X" appears
 
+// What the clock shows when it comes up with no network at all -- either
+// because nothing connected, or because "Offline Mode" was picked from the
+// startup list. Stand-in values, so the face is not full of blanks.
+static constexpr int   OFFLINE_MONTH = 8;
+static constexpr int   OFFLINE_DAY   = 13;
+static constexpr float OFFLINE_TEMP  = 72.0f;
+
 // Hour after which the weather readout switches from today's high to
 // tomorrow's -- by the evening today's high is history.
 static constexpr int WEATHER_TOMORROW_AFTER_HOUR = 20;
@@ -250,7 +257,7 @@ static constexpr float MENU_VOLUME_STEP = 0.1f;   // gain change per encoder det
 static constexpr unsigned long TROLL_ROLL_INTERVAL_MS = 60000;   // how often the dice come out
 
 static constexpr int TROLL_MAJOR_ODDS = 400;  // 1-in-N per minute: ~1 every 6.7 hours
-static constexpr int TROLL_MINOR_ODDS = 40;   // 1-in-N per minute: ~1 every 40 minutes
+static constexpr int TROLL_MINOR_ODDS = 60;   // 1-in-N per minute: ~1 every 60 minutes
 static constexpr int TROLL_DAILY_ODDS = 20;   // 1-in-N per day: most days are just days
 
 // ============================================================================
@@ -275,8 +282,8 @@ static constexpr int TROLL_LOCKOUT_MAX_MINUTES = 60;
 
 // Individual durations, for the rows that use a fixed one.
 static constexpr unsigned long TR_FAKE_UPDATE_MS = 60UL * 60 * 1000;        // 1 hour of progress bar
-static constexpr unsigned long TR_WRONG_TIME_MS  = 120UL * 60 * 1000;       // 2 hours of lying
-static constexpr unsigned long TR_MAD_TEMP_MS    = 120UL * 60 * 1000;       // 2 hours of nonsense weather
+static constexpr unsigned long TR_WRONG_TIME_MS  = 60UL * 60 * 1000;       // 1 hour of lying
+static constexpr unsigned long TR_MAD_TEMP_MS    = 60UL * 60 * 1000;       // 1 hour of nonsense weather
 static constexpr unsigned long TR_CAT_CLOCK_MS   = 20UL * 60 * 1000;        // 20 minutes of cat
 static constexpr unsigned long TR_AQUARIUM_MS    = 24UL * 60 * 60 * 1000;   // capped by the daily end-of-day rule
 static constexpr unsigned long TR_DAILY_MS       = 12UL * 60 * 60 * 1000;   // ditto, for the simple dailies
@@ -355,6 +362,16 @@ static constexpr uint32_t EYE_WHISPER_MAX = 20000;  // longest -- sparse on purp
 // Ground covered per stride, in pixels. Set to the sprite's widest leg span, so
 // the planted foot stays planted -- get this wrong and the figure moonwalks.
 static constexpr int WALK_STRIDE_PX = 29;
+
+// ---- Walk-by: the same figure, crossing the working clock ------------------
+// Speed is a percentage of the sprite's natural pace, rolled fresh for every
+// crossing. The travel is scaled by the same number, so any speed here keeps
+// the planted foot planted -- there is no ratio to get wrong.
+static constexpr int WALKBY_SPEED_MIN_PCT = 60;    // an amble
+static constexpr int WALKBY_SPEED_MAX_PCT = 260;   // late for something
+// Quiet time between crossings, i.e. how long the clock is left alone.
+static constexpr uint32_t WALKBY_GAP_MIN_MS = 3000;
+static constexpr uint32_t WALKBY_GAP_MAX_MS = 14000;
 
 // ---- Cat bounce and DVD mode: ricochet around the screen -------------------
 // Speeds are deliberately not neat ratios of each other, so corner hits stay

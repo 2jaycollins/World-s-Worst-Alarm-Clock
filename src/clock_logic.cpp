@@ -18,6 +18,7 @@ bool  weatherUnavailable = false;
 
 int currentLocationIndex = 0;
 int currentWifiIndex     = 0;
+bool offlineMode         = false;
 
 static unsigned long lastWeatherFetch = 0;
 static int  weatherFailCount = 0;   // consecutive failed refreshes
@@ -54,16 +55,22 @@ void setupClock() {
         fetchWeather();
         disconnectWifi();
     } else {
+        offlineMode = true;
         disconnectWifi();
         u8g2.clearBuffer();
         centerText("Offline Mode");
         u8g2.sendBuffer();
         delay(2000);
 
-        // Hide the weather, since we have none. Only set in memory, so a later
-        // successful boot restores the user's real preference.
-        tempMode = TEMP_OFF;
-        DEBUG_PRINTLN("No WiFi at boot -- offline clock on last known RTC time");
+        // No forecast to show, so stand in a fixed mild reading rather than
+        // blanking the readout or leaving whatever floats in memory. Only set
+        // in memory: a later online boot fetches the real thing.
+        currentTemp        = OFFLINE_TEMP;
+        todayHighTemp      = OFFLINE_TEMP;
+        tomorrowHighTemp   = OFFLINE_TEMP;
+        weatherCode        = 0;      // clear sky
+        weatherUnavailable = false;  // deliberate stand-in, not a stale reading
+        DEBUG_PRINTLN("No WiFi at boot -- offline clock, placeholder date and temp");
     }
 
     // Sync night mode to the wall clock now the RTC has the real time. The
@@ -137,12 +144,25 @@ void updateClock() {
     }
 
     // Never while Bluetooth is active: connectWifi() blocks and powers the
-    // radio back on, which would freeze the UI and fight the BT stack.
+    // radio back on, which would freeze the UI and fight the BT stack. This
+    // also runs in offline mode -- the stall is accepted in exchange for the
+    // clock recovering on its own when the network comes back.
     if (!bluetoothActive && shouldRefreshWeather()) {
         lastWeatherFetch = millis();   // mark the attempt, so a failure does not retry every frame
 
         bool updated = false;
-        if (connectWifi()) updated = fetchWeather();
+        if (connectWifi()) {
+            // Coming back from an offline boot: the RTC has never been
+            // corrected and the date on screen is still the placeholder, so
+            // fix both before the readings land.
+            if (offlineMode) {
+                syncTimeFromNTP();
+                offlineMode = false;
+                initDayTriggers(getCurrentTime().day());
+                DEBUG_PRINTLN("Network is back -- leaving offline mode");
+            }
+            updated = fetchWeather();
+        }
         disconnectWifi();
 
         if (updated) {
@@ -199,8 +219,12 @@ String getFormattedTime() {
 }
 
 String getFormattedDate() {
-    DateTime now = getCurrentTime();
     char buf[11];
+    if (offlineMode) {
+        sprintf(buf, "%02d/%02d", OFFLINE_MONTH, OFFLINE_DAY);
+        return String(buf);
+    }
+    DateTime now = getCurrentTime();
     sprintf(buf, "%02d/%02d", now.month(), now.day());
     return String(buf);
 }
@@ -383,6 +407,15 @@ void saveWifiPreference(int index) {
 //  nothing else can usefully run before the clock knows the time.
 // ============================================================================
 
+// The list carries one extra row past the known networks: "Offline Mode", which
+// skips connecting altogether and boots straight to the dumb clock.
+static const int WIFI_OFFLINE_INDEX = WIFI_COUNT;
+static const int WIFI_ITEM_COUNT    = WIFI_COUNT + 1;
+
+static const char* wifiItemName(int idx) {
+    return idx == WIFI_OFFLINE_INDEX ? "Offline Mode" : WIFI_NETWORKS[idx].name;
+}
+
 // A scrolling list of the known networks. `connecting` swaps the footer for a
 // status line while an attempt is in flight.
 static void drawWifiSelectScreen(int sel, bool connecting) {
@@ -397,7 +430,7 @@ static void drawWifiSelectScreen(int sel, bool connecting) {
 
     for (int row = 0; row < visible; row++) {
         int idx = first + row;
-        if (idx >= WIFI_COUNT) break;
+        if (idx >= WIFI_ITEM_COUNT) break;
         int y = MENU_START_Y + row * MENU_ROW_H;
         if (idx == sel) {
             u8g2.drawBox(0, y, SCREEN_W, MENU_ROW_H);
@@ -405,7 +438,7 @@ static void drawWifiSelectScreen(int sel, bool connecting) {
         } else {
             u8g2.setDrawColor(1);
         }
-        u8g2.drawStr(3, y + 1, WIFI_NETWORKS[idx].name);
+        u8g2.drawStr(3, y + 1, wifiItemName(idx));
         u8g2.setDrawColor(1);
     }
 
@@ -414,9 +447,11 @@ static void drawWifiSelectScreen(int sel, bool connecting) {
     u8g2.sendBuffer();
 }
 
-// Let the user pick a network, and connect to it. If nobody interacts for
-// WIFI_AUTO_CONNECT_DELAY, walks every known network itself, so an unattended
-// power-cut reboot still recovers. Returns false only if none of them connect.
+// Let the user pick a network, and connect to it. Picking "Offline Mode" gives
+// up immediately and boots the dumb clock. If nobody interacts for
+// WIFI_AUTO_CONNECT_DELAY, walks every known network itself (never the offline
+// row), so an unattended power-cut reboot still recovers. Returns false when
+// offline was chosen, or when none of the networks connect.
 bool selectWifiAtStartup() {
     int sel = currentWifiIndex;
     if (sel < 0 || sel >= WIFI_COUNT) sel = 0;
@@ -431,6 +466,13 @@ bool selectWifiAtStartup() {
 
     while (true) {
         if (wasEncoderPressed()) {
+            // Offline Mode: no attempt at all, and currentWifiIndex is left
+            // alone so the saved network survives for the next boot.
+            if (sel == WIFI_OFFLINE_INDEX) {
+                DEBUG_PRINTLN("Offline Mode selected at startup");
+                return false;
+            }
+
             drawWifiSelectScreen(sel, true);
             currentWifiIndex = sel;
             if (connectWifi()) return true;
@@ -446,12 +488,12 @@ bool selectWifiAtStartup() {
         bool moved = false;
         while (accum >= ENCODER_STEPS_PER_DETENT) {
             accum -= ENCODER_STEPS_PER_DETENT;
-            sel = (sel + 1) % WIFI_COUNT;
+            sel = (sel + 1) % WIFI_ITEM_COUNT;
             moved = true;
         }
         while (accum <= -ENCODER_STEPS_PER_DETENT) {
             accum += ENCODER_STEPS_PER_DETENT;
-            sel = (sel - 1 + WIFI_COUNT) % WIFI_COUNT;
+            sel = (sel - 1 + WIFI_ITEM_COUNT) % WIFI_ITEM_COUNT;
             moved = true;
         }
         if (moved) {

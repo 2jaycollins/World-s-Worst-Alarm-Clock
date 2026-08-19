@@ -18,10 +18,12 @@ struct WifiNetwork {
 
 const WifiNetwork WIFI_NETWORKS[] = {
     { "Waimea",  H_WIFI_SSID, H_WIFI_PASSWORD },
-    { "Boulder", B_WIFI_SSID, B_WIFI_PASSWORD }
+    { "Boulder", B_WIFI_SSID, B_WIFI_PASSWORD },
+    { "Florian's House", F_WIFI_SSID, F_WIFI_PASSWORD }
 };
 
-const int WIFI_COUNT = 2;
+
+const int WIFI_COUNT = 3;
 
 // ---- Locations -------------------------------------------------------------
 struct Location {

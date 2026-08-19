@@ -36,12 +36,28 @@ public:
     int  port() const { return portNo; }
 };
 
-// gen points at whichever decoder the current clip needs. Both derive from
-// AudioGenerator and share the same interface, so the rest of this file is
-// format-agnostic. It is built per clip and freed when the clip ends, which
-// keeps the MP3 decoder's ~25KB heap allocation off the books whenever we are
-// only playing short WAV beeps.
-static AudioGenerator*          gen  = nullptr;
+// gen POINTS AT one of the two decoders below -- it never owns one. Both derive
+// from AudioGenerator and share the same interface, so the rest of this file is
+// format-agnostic.
+//
+// Both decoders, and libmad's whole working set, are allocated ONCE in
+// setupAudio() and kept for the life of the program. Building them per clip is
+// what the obvious version does, and it works perfectly for days: libmad wants
+// about 28KB in four blocks, the largest ~17KB contiguous, and a fresh heap
+// hands that over without blinking.
+//
+// It stops working once the heap is fragmented. This clock brings WiFi up and
+// tears it down every WEATHER_UPDATE_INTERVAL -- 144 times a day -- and each
+// cycle allocates and frees tens of KB of driver state. After a few days there
+// is still plenty of free heap, but no 17KB hole left in it, so
+// AudioGeneratorMP3::begin() fails its malloc and returns false. It fails
+// CLEANLY: no crash, nothing in the log unless you are watching serial, just
+// silence. WAV needs a few hundred bytes and carries on regardless -- which is
+// why the symptom is "the button beeps still work but every MP3 has gone quiet".
+static AudioGenerator*          gen  = nullptr;   // the active decoder, or nullptr
+static AudioGeneratorMP3*       mp3  = nullptr;
+static AudioGeneratorWAV*       wav  = nullptr;
+static void*                    mp3Workspace = nullptr;   // libmad's buffers, forever
 static PersistentI2S*           out  = nullptr;
 static AudioFileSourceLittleFS* file = nullptr;
 static unsigned long            playStartMs = 0;
@@ -139,19 +155,39 @@ void setupAudio() {
     out->SetGain(baseGain);
     out->begin();
 
-    DEBUG_PRINTLN("Audio OK (persistent I2S)");
+    // Claim libmad's working set now, while the heap is pristine and a block
+    // this size is still there for the asking -- see the note by `gen`. The
+    // decoder carves its buffers out of this and never touches the heap again.
+    const int mp3Bytes = AudioGeneratorMP3::preAllocSize();
+    mp3Workspace = malloc(mp3Bytes);
+    if (!mp3Workspace)
+        DEBUG_PRINTF("Audio: MP3 workspace (%d bytes) FAILED -- falling back to per-clip allocation\n",
+                     mp3Bytes);
+
+    // With a null workspace the decoder quietly goes back to allocating per
+    // clip, which is the old behaviour: degraded, but not broken.
+    mp3 = new AudioGeneratorMP3(mp3Workspace, mp3Workspace ? mp3Bytes : 0);
+    wav = new AudioGeneratorWAV();
+
+    DEBUG_PRINTF("Audio OK (persistent I2S, %d byte MP3 workspace, %u heap free)\n",
+                 mp3Workspace ? mp3Bytes : 0, (unsigned)ESP.getFreeHeap());
 }
 
-// Stop and free ONLY the current clip, leaving the queue alone, so the queue
-// machinery can tear down a finished clip before starting the next. keepTail
-// preserves the DMA buffer so a naturally-finished clip plays out.
+// Stop the current clip, leaving the queue alone, so the queue machinery can
+// tear down a finished clip before starting the next. keepTail preserves the
+// DMA buffer so a naturally-finished clip plays out.
+//
+// The decoder is only STOPPED, never deleted: it is one of the two permanent
+// ones, and both are reusable -- stop() winds the decode state down and a later
+// begin() winds a fresh one back up. Only the file source is per clip, and it
+// is a few dozen bytes. gen->stop() reads the source, so the order matters.
 static void stopCurrent(bool keepTail = false) {
     if (gen && gen->isRunning()) {
         if (out) out->keepTail = keepTail;
         gen->stop();
         if (out) out->keepTail = false;
     }
-    if (gen)  { delete gen;  gen  = nullptr; }
+    gen = nullptr;
     if (file) { delete file; file = nullptr; }
 
     // On a hard stop, zero the DMA even if there was no live generator, so a
@@ -184,12 +220,16 @@ static bool startClip(const char* filename, float gain) {
         return false;
     }
 
-    gen = isMP3(filename) ? (AudioGenerator*)new AudioGeneratorMP3()
-                          : (AudioGenerator*)new AudioGeneratorWAV();
+    gen = isMP3(filename) ? (AudioGenerator*)mp3 : (AudioGenerator*)wav;
 
-    if (!gen->begin(file, out)) {
-        DEBUG_PRINTF("Audio: failed to play %s (bad format or decoder init failed)\n", filename);
-        delete gen;  gen  = nullptr;
+    if (!gen || !gen->begin(file, out)) {
+        // Free heap is logged because the historic cause of this is a
+        // fragmented heap starving the decoder -- see the note by `gen`. A big
+        // "free" next to a small "largest block" is that failure exactly.
+        DEBUG_PRINTF("Audio: failed to play %s (bad format or decoder init failed; "
+                     "heap free %u, largest block %u)\n", filename,
+                     (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
+        gen = nullptr;
         delete file; file = nullptr;
         if (tempGainActive) { out->SetGain(baseGain); tempGainActive = false; }
         return false;

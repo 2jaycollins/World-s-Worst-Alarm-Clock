@@ -100,6 +100,12 @@ void syncTimeFromNTP();
 
 extern int currentWifiIndex;      // index into WIFI_NETWORKS
 bool selectWifiAtStartup();       // picker shown only when the saved network fails
+
+// True for the whole session when the clock came up without a network. The date
+// readout shows OFFLINE_MONTH/OFFLINE_DAY rather than the RTC's date, which
+// after a flat backup battery is usually nonsense. Only the DISPLAY is faked --
+// the RTC is never written, so a later online boot recovers cleanly.
+extern bool offlineMode;
 void loadWifiPreference();
 void saveWifiPreference(int index);
 

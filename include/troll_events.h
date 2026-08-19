@@ -89,6 +89,7 @@ enum TrollId {
     TR_FROG_SIT,        // a frog squats over the date and temperature
     TR_DATE_SWAP,       // the date and time trade places and fonts
     TR_WALKER,          // a figure paces across the screen, footsteps and all
+    TR_WALK_BY,         // the same figure, crossing the working clock in silence
 
     TR_COUNT            // must stay last
 };

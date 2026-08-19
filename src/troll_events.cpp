@@ -31,6 +31,7 @@ static void triggerCatClock();      static void drawCatClock();
 static void triggerFrogSit();       static void drawFrogSit();
 static void triggerDateSwap();      static void drawDateSwap();
 static void triggerWalker();        static void drawWalker();
+static void triggerWalkBy();        static void drawWalkBy();
 
 static void drawLoseDate();   static void endLoseDate();   static bool canLoseDate();
 static void drawLoseTemp();   static void endLoseTemp();   static bool canLoseTemp();
@@ -129,6 +130,7 @@ TrollEvent trollEvents[] = {
     { "Frog",          false, TROLL_MINOR,   true,  TROLL_PATIENT_MINOR_MS, triggerFrogSit,      drawFrogSit },
     { "Date swap",     false, TROLL_MINOR,   true,  TROLL_PATIENT_MINOR_MS, triggerDateSwap,     drawDateSwap },
     { "Walker",        false, TROLL_MINOR,   false, TROLL_BLIND_MINOR_MS,   triggerWalker,       drawWalker },
+    { "Walk-by",       false, TROLL_MINOR,   true,  TROLL_PATIENT_MINOR_MS, triggerWalkBy,       drawWalkBy },
 };
 const int TROLL_EVENT_COUNT = sizeof(trollEvents) / sizeof(trollEvents[0]);
 
@@ -678,6 +680,58 @@ static void drawWalker() {
         if (landed) playSound(SND_FOOTSTEP, GAIN_FOOTSTEP);
     }
     walkLastTotalStep = total;
+}
+
+// ---- Walk-by ---------------------------------------------------------------
+// The same figure as Walker, but strolling ACROSS THE WORKING CLOCK instead of
+// owning a blank screen (overClock), silently, for hours. Somebody wanders past
+// every few seconds, each at their own pace, and the clock carries on behind
+// them. No footsteps: Walker runs for half an hour and the steps are the joke,
+// this one runs for six and they would be a fault.
+//
+// SPEED is the whole trick here. drawAnim() reads frameMs from the const Anim,
+// so the legs cannot be told to move faster -- instead the figure is handed a
+// SCALED CLOCK, and both the animation and the travel are derived from that one
+// number. Sync is then structural rather than something to keep in step: at any
+// percentage the stride and the ground covered scale together, so the planted
+// foot stays planted and nobody moonwalks.
+
+static unsigned long wbPassStartMs = 0;     // ms since the event began
+static unsigned long wbNextAt      = 0;     // when the next crossing starts
+static uint16_t      wbSpeedPct    = 100;   // this crossing's pace
+static bool          wbWalking     = false;
+
+static void triggerWalkBy() {
+    wbWalking = false;
+    wbNextAt  = (uint32_t)random(WALKBY_GAP_MIN_MS, WALKBY_GAP_MAX_MS);   // not instantly
+}
+
+static void drawWalkBy() {
+    unsigned long e = trollElapsedMs();
+    const Anim&   a = ANIM_WALK;
+
+    // Between crossings: draw nothing at all, so the clock is simply itself.
+    if (!wbWalking) {
+        if (e < wbNextAt) return;
+        wbWalking     = true;
+        wbPassStartMs = e;
+        wbSpeedPct    = (uint16_t)random(WALKBY_SPEED_MIN_PCT, WALKBY_SPEED_MAX_PCT + 1);
+    }
+
+    // The scaled clock. Everything below is a pure function of it.
+    unsigned long w      = (e - wbPassStartMs) * wbSpeedPct / 100;
+    long          travel = (long)((w * (2UL * WALK_STRIDE_PX)) / animLengthMs(a));
+
+    // On at the left, off at the right, then wait for the next one. Not
+    // wrapped like Walker: this one is a series of separate passers-by.
+    int x = (int)travel - a.w;
+    if (x >= SCREEN_W) {
+        wbWalking = false;
+        wbNextAt  = e + (uint32_t)random(WALKBY_GAP_MIN_MS, WALKBY_GAP_MAX_MS);
+        return;
+    }
+
+    drawAnim(a, x, 0, w, true);
 }
 
 // ============================================================================
