@@ -96,7 +96,7 @@ static constexpr unsigned long DEV_CODE_WINDOW_MS = 3000;
 //  moves all three together, which is the point.
 // ============================================================================
 static constexpr int NIGHT_MODE_HOUR = 23;   // hour (0-23) the screen dims for the night
-static constexpr int WAKE_UP_HOUR    = 7;    // hour (0-23) it comes back up
+static constexpr int WAKE_UP_HOUR    = 8;    // hour (0-23) it comes back up
 
 // ============================================================================
 //  WIFI AND WEATHER
@@ -256,8 +256,13 @@ static constexpr float MENU_VOLUME_STEP = 0.1f;   // gain change per encoder det
 // ============================================================================
 static constexpr unsigned long TROLL_ROLL_INTERVAL_MS = 60000;   // how often the dice come out
 
-static constexpr int TROLL_MAJOR_ODDS = 400;  // 1-in-N per minute: ~1 every 6.7 hours
-static constexpr int TROLL_MINOR_ODDS = 60;   // 1-in-N per minute: ~1 every 60 minutes
+// Dialled back 3x from the original 400/60. A 30-minute bedside session that
+// threw two minors and a major is a ~1-in-235 event at the original numbers,
+// so the rate really was running hot -- but a sample that small cannot say
+// HOW hot: 3x and 10x fit it equally well. 3x is the setting that calms the
+// clock down without leaving it dead. Multiply by 10/3 if it still nags.
+static constexpr int TROLL_MAJOR_ODDS = 1200;  // 1-in-N per minute: ~1 every 20 hours
+static constexpr int TROLL_MINOR_ODDS = 180;   // 1-in-N per minute: ~1 every 3 hours
 static constexpr int TROLL_DAILY_ODDS = 20;   // 1-in-N per day: most days are just days
 
 // ============================================================================

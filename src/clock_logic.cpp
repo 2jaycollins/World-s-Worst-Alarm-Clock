@@ -100,9 +100,25 @@ bool isNightHour(int hour) {
 
 // Seed the day latches from the current time, so the boot-time state sync in
 // setupClock() does not immediately re-fire as an edge.
+//
+// A latch is claimed ONLY IF that transition's moment has already gone by
+// today. Claiming both unconditionally is the obvious version, and it silently
+// eats a transition: boot at any time before NIGHT_MODE_HOUR and lastNightDay
+// already equals today, so 23:00 comes and goes without dimming. The wake-up
+// still fires, because the next one falls on a DIFFERENT day and the latch
+// compares days -- which is exactly why the morning looked fine while the
+// evening never happened. On a clock that gets rebooted often, night mode then
+// only ever appears via the boot-time sync below.
 void initDayTriggers(int day) {
-    lastWakeDay  = day;
-    lastNightDay = day;
+    int hour = getCurrentTime().hour();
+
+    // The wake-up has happened if we are past it and not yet into the night.
+    lastWakeDay  = isNightHour(hour) ? -1 : day;
+
+    // Tonight's dimming has happened only inside the 23:00-23:59 tail of today.
+    // Between midnight and the wake-up hour we are in the night that began
+    // YESTERDAY, so today's is still to come and the latch stays unclaimed.
+    lastNightDay = (hour >= NIGHT_MODE_HOUR) ? day : -1;
 }
 
 // Once per frame: re-roll the drift at midnight, run the night-mode
